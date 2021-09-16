@@ -1,0 +1,37 @@
+-   hooks:
+    -   typeorm can use hooks for logging errors. However, it is applicable only when save() or remove() is used
+    -   insert(), update(), delete() directly create and save to typeorm as a plain object.
+    -   hooks can be used when an entity object is saved to typeorm
+    -   Disadvantage of hooks is that we are using 2 database calls instead of 1
+    -   use @AfterInsert, @AfterUpdate, etc for logging
+
+-   error handling:
+    -   errors should be handled in controller instead of service because Nestjs supports GRPC and websockets also.
+        These cannot understand errors like NotFoundException, that are thrown from service. It works for http only
+    -   However, if errors must be thrown from service and app does use other comm protocols then use EXCEPTION FILTERS
+
+-   Serialization:
+    -   Using exclude() in entity and UseInterceptors(ClassSerializerInterceptor)
+        -   the default nestjs way of serializing
+        -   drawback: GET:admin/user/1 and GET:user/1 would return the same result for user 1. Whereas, admin should have access to all info regarding the user
+    -   Custom interceptor:
+        -   takes in User entity instance, applies the Custom User DTO to the instance to expose only the required attributes
+    -   Custom decorator:
+        -   export function Serialize(dto: any) {
+                return UseInterceptors(new SerializeInterceptor(dto));
+            }
+
+-   Incoming request stopping points:
+    -   request -> middleware -> guards -> interceptor -> request handler -> interceptor -> response
+    -   Note that an interceptor to add a currentuser attr to request will apply after the guards. Hence,
+        adminGuard would not be able to detect if currentuser is admin or not. So currentuser should be made into a global middleware
+        similar to cookie-session  
+
+-   Migrations:
+    -   typeorm cli is needed for migrations but cli has no idea about dependcy injection of nestjs. So, configService cannot be used for env keys
+    -   ormconfig can be created with .envs or as .js/.ts or .json/yml
+        -   .json/.yml prevents use of multiple node_env as separate ormconfig files have to be created for test, prod
+        -   .env has the same problem as above
+        -   .ts.js ormconfig files are most suitable for changing logic for different environemtns:
+            -   .ts cannot be used directly though from root folder as typeorm needs to read a js file. This can be resolved if the path to dist folder is provided which contains the transpiled version of ormconfig.ts
+            -   .js can be read but an -o flag should be provided so as to tell not to transpile ts into js file and directly produce a js file
